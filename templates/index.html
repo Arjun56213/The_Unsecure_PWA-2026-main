@@ -27,6 +27,7 @@
 </form>
 <!-- User message -->
 {% if msg %}
-<div>{{ msg|safe }}</div>
+<!--Removing the "| safe" let's html know that the text is not deemed safe and consider it face value rather than as a potential executable-->
+<div>{{ msg }}</div>
 {% endif %}
 {% endblock %}

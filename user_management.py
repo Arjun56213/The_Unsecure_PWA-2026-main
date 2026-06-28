@@ -1,6 +1,7 @@
 import sqlite3 as sql
 import time
 import random
+import html
 
 
 def insertUser(username, password, DoB):
@@ -58,6 +59,8 @@ def listFeedback():
     f = open("templates/partials/success_feedback.html", "w")
     for row in data:
         f.write("<p>\n")
-        f.write(f"{row[1]}\n")
+        
+        #Escape all HTML special characters in feedback before writing to the template - This prevents injected script from executing in the browser
+        f.write(f"{html.escape(row[1])}\n")
         f.write("</p>\n")
     f.close()
