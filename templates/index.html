@@ -22,6 +22,8 @@
     />
   </div>
   <div class="input__wrapper">
+    <!-- Hidden CSRF token field submitted with the form for server side verification -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
     <input type="submit" class="btn" value="Log In" />
   </div>
 </form>

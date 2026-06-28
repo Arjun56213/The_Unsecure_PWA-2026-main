@@ -3,6 +3,8 @@ from flask import render_template
 from flask import request
 from flask import redirect
 from flask_cors import CORS
+import secrets
+from flask import session
 import user_management as dbHandler
 
 # Code snippet for logging a message
@@ -10,8 +12,10 @@ import user_management as dbHandler
 
 app = Flask(__name__)
 # Enable CORS to allow cross-origin requests (needed for CSRF demo in Codespaces)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
+# Secret key required for session management and CSRF token generation - Without this sessions can't be used securely
+app.secret_key = secrets.token_hex(32)
 
 @app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def addFeedback():
@@ -53,8 +57,15 @@ def home():
     # Pass message to front end
     elif request.method == "GET":
         msg = request.args.get("msg", "")
-        return render_template("/index.html", msg=msg)
+        
+        # Generate a random CSRF token and store it in the session for later verification
+        session["csrf_token"] = secrets.token_hex(32)
+        return render_template("/index.html", msg=msg, csrf_token=session["csrf_token"])
     elif request.method == "POST":
+       
+        # Check the token submitted with the form matches the one stored in the session - If they do not match the request is rejected as a potential CSRF attack
+        if request.form.get("csrf_token") != session.get("csrf_token"):
+            return "Invalid CSRF token", 403
         username = request.form["username"]
         password = request.form["password"]
         isLoggedIn = dbHandler.retrieveUsers(username, password)
@@ -70,4 +81,4 @@ def home():
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
