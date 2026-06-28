@@ -11,7 +11,7 @@ import user_management as dbHandler
 # app.logger.critical("message")
 
 app = Flask(__name__)
-# Enable CORS to allow cross-origin requests (needed for CSRF demo in Codespaces)
+# Enable CORS to allow cross-origin requests 
 CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
 # Secret key required for session management and CSRF token generation - Without this sessions can't be used securely
@@ -20,31 +20,41 @@ app.secret_key = secrets.token_hex(32)
 @app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def addFeedback():
     if request.method == "GET" and request.args.get("url"):
+        # Generate CSRF token and pass to feedback form for verification on submission
         url = request.args.get("url", "")
         return redirect(url, code=302)
     if request.method == "POST":
+        # Check CSRF token matches session token before processing feedback submission
+        if request.form.get("csrf_token") != session.get("csrf_token"):
+            return "Invalid CSRF token", 403
         feedback = request.form["feedback"]
         dbHandler.insertFeedback(feedback)
         dbHandler.listFeedback()
         return render_template("/success.html", state=True, value="Back")
     else:
         dbHandler.listFeedback()
-        return render_template("/success.html", state=True, value="Back")
+        session["csrf_token"] = secrets.token_hex(32)
+        return render_template("/success.html", state=True, value="Back", csrf_token=session["csrf_token"])
 
 
 @app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def signup():
     if request.method == "GET" and request.args.get("url"):
+        # Generate CSRF token and pass to signup form for verification on submission
         url = request.args.get("url", "")
         return redirect(url, code=302)
     if request.method == "POST":
+        # Check CSRF token matches session token before processing signup
+        if request.form.get("csrf_token") != session.get("csrf_token"):
+            return "Invalid CSRF token", 403
         username = request.form["username"]
         password = request.form["password"]
         DoB = request.form["dob"]
         dbHandler.insertUser(username, password, DoB)
         return render_template("/index.html")
     else:
-        return render_template("/signup.html")
+        session["csrf_token"] = secrets.token_hex(32)
+        return render_template("/signup.html", csrf_token=session["csrf_token"])
 
 
 @app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
@@ -57,12 +67,10 @@ def home():
     # Pass message to front end
     elif request.method == "GET":
         msg = request.args.get("msg", "")
-        
         # Generate a random CSRF token and store it in the session for later verification
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/index.html", msg=msg, csrf_token=session["csrf_token"])
     elif request.method == "POST":
-       
         # Check the token submitted with the form matches the one stored in the session - If they do not match the request is rejected as a potential CSRF attack
         if request.form.get("csrf_token") != session.get("csrf_token"):
             return "Invalid CSRF token", 403

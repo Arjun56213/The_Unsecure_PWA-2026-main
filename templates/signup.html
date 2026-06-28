@@ -12,6 +12,8 @@
         <input type="dateOfBirth" name="dob" placeholder="Date of Birth" class="input__field">
     </div>
     <div class="input__wrapper">
+        <!-- Hidden CSRF token submitted with the form to verify the request is legitimate -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
         <button type="submit" class="btn">Submit</button>
     </div>
 </form>
