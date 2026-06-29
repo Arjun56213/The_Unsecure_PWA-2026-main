@@ -16,7 +16,7 @@ def insertUser(username, password, DoB):
     hashed_password = hash_password(password)
     cur.execute(
         "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
-        (username, password, DoB),
+        (username, hashed_password, DoB),
     )
     con.commit()
     con.close()
@@ -26,7 +26,7 @@ def retrieveUsers(username, password):
     con = sql.connect("database_files/database.db")
     cur = con.cursor()
     # Parameterised query prevents SQL injection by treating input as data, not code
-    cur.execute(f"SELECT * FROM users WHERE username = ?", {username})
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     if cur.fetchone() == None:
         con.close()
         return False
