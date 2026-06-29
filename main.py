@@ -8,9 +8,9 @@ from flask import session
 import user_management as dbHandler
 
 # Code snippet for logging a message
-# app.logger.critical("message")
 
 app = Flask(__name__)
+
 # Enable CORS to allow cross-origin requests 
 CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
@@ -23,16 +23,22 @@ def addFeedback():
     # Redirect unauthenticated users to login page to prevent unauthorised access to the success page
     if not session.get("logged_in"):
         return redirect("/")
-    if request.method == "GET" and request.args.get("url"):
 
-        # Generate CSRF token and pass to feedback form for verification on submission
+    if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
+
+        # Whitelist of allowed redirect destinations - reject anything not on the list to prevent open redirect attacks
+        allowed_urls = ["/", "/index.html", "/signup.html", "/success.html"]
+        if url not in allowed_urls:
+            return redirect("/")
         return redirect(url, code=302)
+
     if request.method == "POST":
 
         # Check CSRF token matches session token before processing feedback submission
         if request.form.get("csrf_token") != session.get("csrf_token"):
             return "Invalid CSRF token", 403
+
         feedback = request.form["feedback"]
         dbHandler.insertFeedback(feedback)
         dbHandler.listFeedback()
@@ -40,31 +46,45 @@ def addFeedback():
         # Regenerate CSRF token after feedback submission so the form can be used again
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/success.html", state=True, value="Back", csrf_token=session["csrf_token"])
+
     else:
         dbHandler.listFeedback()
+
+        # Generate CSRF token and pass to feedback form for verification on submission
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/success.html", state=True, value="Back", csrf_token=session["csrf_token"])
 
 
 @app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def signup():
+
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
 
-        # Generate CSRF token and pass to signup form for verification on submission
+        # Whitelist of allowed redirect destinations - reject anything not on the list to prevent open redirect attacks
+        allowed_urls = ["/", "/index.html", "/signup.html", "/success.html"]
+        if url not in allowed_urls:
+            return redirect("/")
         return redirect(url, code=302)
+
     if request.method == "POST":
 
-        # Regenerate CSRF token after signup so login form can be submitted
+        # Check CSRF token matches session token before processing signup
         if request.form.get("csrf_token") != session.get("csrf_token"):
             return "Invalid CSRF token", 403
+
         username = request.form["username"]
         password = request.form["password"]
         DoB = request.form["dob"]
         dbHandler.insertUser(username, password, DoB)
+
+        # Regenerate CSRF token after signup so login form can be submitted
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/index.html", csrf_token=session["csrf_token"])
+
     else:
+
+        # Generate CSRF token and pass to signup form for verification on submission
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/signup.html", csrf_token=session["csrf_token"])
 
@@ -72,23 +92,33 @@ def signup():
 @app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 @app.route("/", methods=["POST", "GET"])
 def home():
+
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
+        print(f"URL requested: {url}")
+        allowed_urls = ["/", "/index.html", "/signup.html", "/success.html"]
+        if url not in allowed_urls:
+            print("Blocked - redirecting to home")
+            return redirect("/")
         return redirect(url, code=302)
+
     elif request.method == "GET":
         msg = request.args.get("msg", "")
 
         # Generate a random CSRF token and store it in the session for later verification
         session["csrf_token"] = secrets.token_hex(32)
         return render_template("/index.html", msg=msg, csrf_token=session["csrf_token"])
+
     elif request.method == "POST":
 
         # Check the token submitted with the form matches the one stored in the session - If they do not match the request is rejected as a potential CSRF attack
         if request.form.get("csrf_token") != session.get("csrf_token"):
             return "Invalid CSRF token", 403
+
         username = request.form["username"]
         password = request.form["password"]
         isLoggedIn = dbHandler.retrieveUsers(username, password)
+
         if isLoggedIn:
 
             # Mark the user as logged in in the session so protected pages can verify access
@@ -98,9 +128,13 @@ def home():
             # Generate CSRF token for the feedback form on the success page
             session["csrf_token"] = secrets.token_hex(32)
             return render_template("/success.html", value=username, state=isLoggedIn, csrf_token=session["csrf_token"])
+
         else:
+
+            # Regenerate CSRF token when login fails so the form can be resubmitted
             session["csrf_token"] = secrets.token_hex(32)
             return render_template("/index.html", csrf_token=session["csrf_token"])
+
     else:
         return render_template("/index.html")
 
@@ -108,4 +142,6 @@ def home():
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+    # Debug mode disabled to prevent stack traces being exposed to users
     app.run(debug=False, host="0.0.0.0", port=5000)
