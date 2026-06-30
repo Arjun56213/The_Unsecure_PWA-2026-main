@@ -17,69 +17,72 @@ def hash_password(password):
 
 
 def insertUser(username, password, DoB):
-    con = sql.connect("database_files/database.db")
-    cur = con.cursor()
 
-    # Hash the password before storing so plain text is never saved to the database
-    hashed_password = hash_password(password)
-    cur.execute(
-        "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
-        (username, hashed_password, DoB),
-    )
-    con.commit()
-    con.close()
+    # Using a context manager ensures the connection is always closed properly, even if an error occurs
+    with sql.connect("database_files/database.db") as con:
+        cur = con.cursor()
+
+        # Hash the password before storing so plain text is never saved to the database
+        hashed_password = hash_password(password)
+        cur.execute(
+            "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
+            (username, hashed_password, DoB),
+        )
+        con.commit()
 
 
 def retrieveUsers(username, password):
-    con = sql.connect("database_files/database.db")
-    cur = con.cursor()
 
-    # Parameterised query prevents SQL injection by treating input as data, not code
-    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-    if cur.fetchone() == None:
-        con.close()
-        return False
-    else:
-
-        # Hash the input password before comparing so we never check plain text against the database
-        hashed_password = hash_password(password)
+    # Using a context manager ensures the connection is always closed properly, even if an error occurs
+    with sql.connect("database_files/database.db") as con:
+        cur = con.cursor()
 
         # Parameterised query prevents SQL injection by treating input as data, not code
-        cur.execute("SELECT * FROM users WHERE password = ?", (hashed_password,))
-
-        # Acquire lock before reading and writing to prevent simultaneous access corrupting the count
-        with visitor_log_lock:
-            with open("visitor_log.txt", "r") as file:
-                number = int(file.read().strip())
-                number += 1
-            with open("visitor_log.txt", "w") as file:
-                file.write(str(number))
-
-        # Simulate response time of heavy app for testing purposes
-        time.sleep(random.randint(80, 90) / 1000)
+        cur.execute("SELECT * FROM users WHERE username = ?", (username,))
         if cur.fetchone() == None:
-            con.close()
             return False
         else:
-            con.close()
-            return True
+
+            # Hash the input password before comparing so we never check plain text against the database
+            hashed_password = hash_password(password)
+
+            # Parameterised query prevents SQL injection by treating input as data, not code
+            cur.execute("SELECT * FROM users WHERE password = ?", (hashed_password,))
+
+            # Acquire lock before reading and writing to prevent simultaneous access corrupting the count
+            with visitor_log_lock:
+                with open("visitor_log.txt", "r") as file:
+                    number = int(file.read().strip())
+                    number += 1
+                with open("visitor_log.txt", "w") as file:
+                    file.write(str(number))
+
+            # Simulate response time of heavy app for testing purposes
+            time.sleep(random.randint(80, 90) / 1000)
+            if cur.fetchone() == None:
+                return False
+            else:
+                return True
 
 
 def insertFeedback(feedback):
-    con = sql.connect("database_files/database.db")
-    cur = con.cursor()
 
-    # Parameterised query prevents SQL injection by treating input as data, not code
-    cur.execute("INSERT INTO feedback (feedback) VALUES (?)", (feedback,))
-    con.commit()
-    con.close()
+    # Using a context manager ensures the connection is always closed properly, even if an error occurs
+    with sql.connect("database_files/database.db") as con:
+        cur = con.cursor()
+
+        # Parameterised query prevents SQL injection by treating input as data, not code
+        cur.execute("INSERT INTO feedback (feedback) VALUES (?)", (feedback,))
+        con.commit()
 
 
 def listFeedback():
-    con = sql.connect("database_files/database.db")
-    cur = con.cursor()
-    data = cur.execute("SELECT * FROM feedback").fetchall()
-    con.close()
+
+    # Using a context manager ensures the connection is always closed properly, even if an error occurs
+    with sql.connect("database_files/database.db") as con:
+        cur = con.cursor()
+        data = cur.execute("SELECT * FROM feedback").fetchall()
+
     f = open("templates/partials/success_feedback.html", "w")
     for row in data:
         f.write("<p>\n")
