@@ -17,7 +17,16 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 # Secret key required for session management and CSRF token generation - Without this sessions can't be used securely
 app.secret_key = "asdbjkl#*@&Sah#*dgfrtyui[oiljkghfbfauisdgdhsjwe9*&weewrwe798*&*&*&"
 
-@app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+
+@app.after_request
+def add_security_headers(response):
+
+    # Signals to browsers that the site should only be accessed over HTTPS in production
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+@app.route("/success.html", methods=["POST", "GET"])
 def addFeedback():
 
     # Redirect unauthenticated users to login page to prevent unauthorised access to the success page
@@ -55,7 +64,7 @@ def addFeedback():
         return render_template("/success.html", state=True, value="Back", csrf_token=session["csrf_token"])
 
 
-@app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+@app.route("/signup.html", methods=["POST", "GET"])
 def signup():
 
     if request.method == "GET" and request.args.get("url"):
@@ -89,16 +98,16 @@ def signup():
         return render_template("/signup.html", csrf_token=session["csrf_token"])
 
 
-@app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+@app.route("/index.html", methods=["POST", "GET"])
 @app.route("/", methods=["POST", "GET"])
 def home():
 
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
-        print(f"URL requested: {url}")
+
+        # Whitelist of allowed redirect destinations - reject anything not on the list to prevent open redirect attacks
         allowed_urls = ["/", "/index.html", "/signup.html", "/success.html"]
         if url not in allowed_urls:
-            print("Blocked - redirecting to home")
             return redirect("/")
         return redirect(url, code=302)
 
@@ -121,7 +130,8 @@ def home():
 
         if isLoggedIn:
 
-            # Mark the user as logged in in the session so protected pages can verify access
+            # Clear and regenerate the session on login to prevent session fixation attacks
+            session.clear()
             session["logged_in"] = True
             dbHandler.listFeedback()
 
@@ -144,4 +154,4 @@ if __name__ == "__main__":
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     # Debug mode disabled to prevent stack traces being exposed to users
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)

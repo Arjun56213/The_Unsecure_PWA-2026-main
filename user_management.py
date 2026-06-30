@@ -37,32 +37,32 @@ def retrieveUsers(username, password):
     with sql.connect("database_files/database.db") as con:
         cur = con.cursor()
 
-        # Parameterised query prevents SQL injection by treating input as data, not code
-        cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-        if cur.fetchone() == None:
+        # Hash the input password before comparing so we never check plain text against the database
+        hashed_password = hash_password(password)
+
+        # Checking username and password in a single query prevents an attacker from
+        # determining whether a username exists based on the timing of the response
+        cur.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (username, hashed_password),
+        )
+        result = cur.fetchone()
+
+        # Acquire lock before reading and writing to prevent simultaneous access corrupting the count
+        with visitor_log_lock:
+            with open("visitor_log.txt", "r") as file:
+                number = int(file.read().strip())
+                number += 1
+            with open("visitor_log.txt", "w") as file:
+                file.write(str(number))
+
+        # Simulate response time of heavy app for testing purposes
+        time.sleep(random.randint(80, 90) / 1000)
+
+        if result == None:
             return False
         else:
-
-            # Hash the input password before comparing so we never check plain text against the database
-            hashed_password = hash_password(password)
-
-            # Parameterised query prevents SQL injection by treating input as data, not code
-            cur.execute("SELECT * FROM users WHERE password = ?", (hashed_password,))
-
-            # Acquire lock before reading and writing to prevent simultaneous access corrupting the count
-            with visitor_log_lock:
-                with open("visitor_log.txt", "r") as file:
-                    number = int(file.read().strip())
-                    number += 1
-                with open("visitor_log.txt", "w") as file:
-                    file.write(str(number))
-
-            # Simulate response time of heavy app for testing purposes
-            time.sleep(random.randint(80, 90) / 1000)
-            if cur.fetchone() == None:
-                return False
-            else:
-                return True
+            return True
 
 
 def insertFeedback(feedback):
