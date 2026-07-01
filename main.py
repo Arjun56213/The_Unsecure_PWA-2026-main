@@ -154,4 +154,4 @@ if __name__ == "__main__":
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     # Debug mode disabled to prevent stack traces being exposed to users
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
